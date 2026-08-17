@@ -13,8 +13,13 @@
 
 date_default_timezone_set('Asia/Tokyo');
 
+// 同じ場所の設定を読む(無ければ後で「設定がありません」になる)
+if (file_exists(__DIR__ . '/kmemo_config.php')) { require_once __DIR__ . '/kmemo_config.php'; }
+
 if (!defined('KMEMO_DATA_DIR')) { define('KMEMO_DATA_DIR', __DIR__ . '/kmemo_data'); }
 define('KMEMO_MAX_CHARS', 200000);   // 1メモの上限。超えたら4xxで断る
+
+function km_is_demo() { return defined('KMEMO_DEMO') && KMEMO_DEMO; }
 
 function km_e($v) { return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); }
 
@@ -271,6 +276,7 @@ function km_login_page($self, $err) {
        . '.err{background:#fdf1f1;border:1px solid #edc4c4;color:#a33;border-radius:10px;padding:8px 12px;font-size:13px;margin:0 0 10px}'
        . '</style></head><body><form class="box" method="post" action="' . km_e($self) . '">'
        . '<div class="ic">📝</div><h1>Kurage Memo にログイン</h1>'
+       . (km_is_demo() ? '<div style="background:#fff8e1;border:1px solid #f0dda3;border-radius:10px;padding:8px 12px;font-size:13px;margin:0 0 10px">デモ用: ユーザー名 <b>demo</b> ／ パスワード <b>demo2026</b></div>' : '')
        . ($err !== '' ? '<div class="err">' . km_e($err) . '</div>' : '')
        . '<input type="hidden" name="action" value="login">'
        . '<label>ユーザー名</label><input name="login_user" autocapitalize="none" autocorrect="off" required autofocus>'
@@ -291,10 +297,13 @@ function km_app_page($self, $user) {
 <title>Kurage Memo</title>
 <style>
 :root{--line:#e4e9ee;--sub:#6b7a88;--blue:#3361cc;--bg:#f7f9fa;--sel:#eef3fc}
+.demo{background:#fff8e1;border-bottom:1px solid #f0dda3;color:#7a5a06;font-size:12px;
+  text-align:center;padding:6px 10px}
 *{box-sizing:border-box}
 html,body{height:100%}
 body{margin:0;font-family:-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;color:#22303c;overflow:hidden}
 .app{display:flex;height:100dvh}
+body:has(.demo) .app{height:calc(100dvh - 30px)}
 /* --- 左: 一覧 --- */
 .side{width:320px;min-width:240px;border-right:1px solid var(--line);display:flex;flex-direction:column;background:var(--bg)}
 .side .top{display:flex;gap:8px;padding:10px;border-bottom:1px solid var(--line);align-items:center}
@@ -328,6 +337,7 @@ textarea{flex:1;border:0;outline:0;resize:none;padding:18px 20px;font:16px/1.9 -
   .bar .back{display:block}
 }
 </style></head><body>
+<?php if (km_is_demo()): ?><div class="demo">デモ環境です。入力された内容は他の見学者にも見えます。個人情報は入れないでください（データは定期的に消去されます）</div><?php endif; ?>
 <div class="app">
   <div class="side">
     <div class="top">
