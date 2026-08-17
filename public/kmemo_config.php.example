@@ -1,0 +1,11 @@
+<?php
+/**
+ * kmemo 設定。コピーして kmemo_config.php にする。
+ * ユーザーはここに列挙する(kcaldavと同じ方式)。値は password_hash() のハッシュ。
+ *   php -r "echo password_hash('パスワード', PASSWORD_DEFAULT);"
+ */
+function kmemo_users() {
+    return array(
+        // 'kojima' => '$2y$10$...',
+    );
+}
