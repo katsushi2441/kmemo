@@ -106,6 +106,128 @@ function km_note_out($n) {
     );
 }
 
+/* ============================================================
+ * バックアップ — 自分のメモを丸ごとZIPで持ち出す
+ *
+ * 方針（vibe-prototypeの標準）:
+ *   ・cronやサーバー側の仕組みは使わない。アプリのコードだけで完結させる
+ *     （置き場所によってcronの可否が変わり「標準」と言い切れないため）
+ *   ・戻すのはAIエージェントに任せる。そのために「戻せる材料」を必ず同梱する
+ *     CSVだけだと、改行・NULL・日付形式が落ちてAIでも詰まる
+ *   ・自分のメモだけを出す。他人のメモは入らない
+ * ============================================================ */
+
+/** 取得日時の記録。「取ったつもり」を防ぐため画面に出す */
+function km_backup_stamp_path($user) {
+    return KMEMO_DATA_DIR . '/backup_' . preg_replace('/[^a-z0-9_-]/i', '', $user) . '.json';
+}
+
+function km_backup_last($user) {
+    $p = km_backup_stamp_path($user);
+    if (!file_exists($p)) { return null; }
+    $d = json_decode((string)file_get_contents($p), true);
+    return is_array($d) ? $d : null;
+}
+
+function km_backup_mark($user, $bytes, $count) {
+    km_ensure_dir();
+    @file_put_contents(km_backup_stamp_path($user), json_encode(array(
+        'at' => date('c'), 'bytes' => (int)$bytes, 'notes' => (int)$count,
+    ), JSON_UNESCAPED_UNICODE));
+}
+
+function km_backup_manifest($user, $notes) {
+    return json_encode(array(
+        'product' => 'kmemo',
+        'format' => 1,
+        'exported_at' => date('c'),
+        'user' => $user,
+        'note_count' => count($notes),
+        'files' => array(
+            'data/notes.json' => 'そのまま戻せる原本。復元はこれを使う',
+            'data/notes.csv' => '人が表計算で中身を確認するための写し',
+        ),
+        'note_fields' => array(
+            'id' => '一意のID（文字列）',
+            'content' => '本文。1行目がタイトルになる。改行を含む',
+            'updated' => '更新日時（ISO8601・日本時間）',
+        ),
+        'restore' => 'data/notes.json を kmemo_data/notes_<ユーザー名>.json として置けば戻ります',
+    ), JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+}
+
+function km_backup_readme($user) {
+    return "# kmemo バックアップの戻しかた\n\n"
+        . "このZIPは " . $user . " さんのメモを丸ごと書き出したものです。\n\n"
+        . "## いちばん簡単な方法\n\n"
+        . "`data/notes.json` を、サーバーの `kmemo_data/notes_" . $user . ".json` として置くだけです。\n"
+        . "これで元に戻ります。\n\n"
+        . "## AIエージェントに任せる場合\n\n"
+        . "このZIPごと Claude Code や Codex に渡して、次のように指示してください。\n\n"
+        . "```\n"
+        . "manifest.json を読んで、このバックアップを kmemo に復元してください。\n"
+        . "data/notes.json が原本です。content は改行を含み、1行目がタイトルになります。\n"
+        . "updated は ISO8601（日本時間）です。文字コードは UTF-8 です。\n"
+        . "```\n\n"
+        . "## 中身\n\n"
+        . "- `data/notes.json` … 原本。これがあれば戻せます\n"
+        . "- `data/notes.csv` … 表計算で開いて中身を確認するための写し（改行はセル内に入っています）\n"
+        . "- `manifest.json` … 製品名・件数・項目の説明\n\n"
+        . "## 注意\n\n"
+        . "このファイルにはメモの全文が入っています。取り扱いにご注意ください。\n"
+        . "サーバーが失われるとサーバー上のデータは戻せません。"
+        . "月に1回はこのZIPをお手元のPCやクラウドに保存してください。\n";
+}
+
+/** ZIP本体。ZipArchiveが無い環境でも動くよう、無ければJSONだけを返す */
+function km_backup_send($user) {
+    $notes = km_load($user);
+    $stamp = date('Y-m-d_Hi');
+    $base = 'kmemo_backup_' . preg_replace('/[^a-z0-9_-]/i', '', $user) . '_' . $stamp;
+
+    // CSV（人が読む用）。BOMを付けてExcelで文字化けさせない
+    $csv = "\xEF\xBB\xBF";
+    $fh = fopen('php://temp', 'r+');
+    fputcsv($fh, array('id', 'title', 'content', 'updated'));
+    foreach ($notes as $n) {
+        fputcsv($fh, array($n['id'], km_title($n['content']), $n['content'], $n['updated']));
+    }
+    rewind($fh);
+    $csv .= stream_get_contents($fh);
+    fclose($fh);
+
+    $json = json_encode(array('notes' => $notes), JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+
+    if (!class_exists('ZipArchive')) {
+        // ZipArchiveが無い共有サーバーがある。原本だけは必ず渡す
+        header('Content-Type: application/json; charset=utf-8');
+        header('Content-Disposition: attachment; filename="' . $base . '.json"');
+        km_backup_mark($user, strlen($json), count($notes));
+        echo $json; exit;
+    }
+
+    $tmp = tempnam(sys_get_temp_dir(), 'kmemo');
+    $zip = new ZipArchive();
+    if ($zip->open($tmp, ZipArchive::OVERWRITE) !== true) {
+        http_response_code(500); echo 'バックアップを作成できませんでした'; exit;
+    }
+    $zip->addFromString('data/notes.json', $json);
+    $zip->addFromString('data/notes.csv', $csv);
+    $zip->addFromString('manifest.json', km_backup_manifest($user, $notes));
+    $zip->addFromString('RESTORE.md', km_backup_readme($user));
+    $zip->close();
+
+    $bytes = filesize($tmp);
+    km_backup_mark($user, $bytes, count($notes));
+    header('Content-Type: application/zip');
+    header('Content-Disposition: attachment; filename="' . $base . '.zip"');
+    header('Content-Length: ' . $bytes);
+    header('X-Content-Type-Options: nosniff');
+    readfile($tmp);
+    @unlink($tmp);
+    exit;
+}
+
 /** 一覧(更新の新しい順)。 */
 function km_list($user) {
     $notes = km_load($user);
@@ -223,6 +345,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST'
 
 $user = km_current_user();
 
+/* ---- バックアップのダウンロード ---- */
+if (isset($_GET['backup']) && $user !== '') {
+    km_backup_send($user);
+}
+
 /* ---- API ---- */
 if (isset($_GET['api'])) {
     header('Content-Type: application/json; charset=utf-8');
@@ -318,7 +445,7 @@ body:has(.demo) .app{height:calc(100dvh - 30px)}
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .item small{font-size:11px;color:#9aa8b5}
 .list .none{padding:30px 14px;color:var(--sub);font-size:13px;text-align:center}
-.side .foot{padding:8px 12px;border-top:1px solid var(--line);font-size:12px;color:var(--sub);display:flex;justify-content:space-between;align-items:center}
+.side .foot{padding:8px 12px;border-top:1px solid var(--line);font-size:12px;color:var(--sub);display:flex;justify-content:space-between;align-items:center}.bkbox{padding:9px 11px;border-top:1px solid var(--line,#e2e8ea);font-size:11px;line-height:1.6}.bkbox.warn{background:#fff7e6}.bkbtn{display:block;text-align:center;padding:7px 10px;border-radius:8px;background:#0a726b;color:#fff;text-decoration:none;font-weight:700;font-size:12px}.bkbtn:hover{background:#12a99f}.bkinfo{display:block;margin-top:6px;color:#6b7b82}
 .side .foot a{color:var(--sub)}
 /* --- 右: エディタ --- */
 .main{flex:1;display:flex;flex-direction:column;min-width:0;background:#fff}
@@ -347,6 +474,25 @@ textarea{flex:1;border:0;outline:0;resize:none;padding:18px 20px;font:16px/1.9 -
     <div class="list" id="list"></div>
     <div class="foot"><span>📝 <?php echo km_e($user); ?></span>
       <a href="<?php echo km_e($self); ?>?do=logout">ログアウト</a></div>
+    <?php
+      /* バックアップ。cronを使わず手動で取る方針なので、取り忘れを画面で防ぐ。
+         「取れているつもり」が一番まずいので、最終取得日時を常に出す。 */
+      $bk = km_backup_last($user);
+      $days = $bk ? (int)floor((time() - strtotime($bk['at'])) / 86400) : null;
+      $warn = ($days === null || $days >= 30);
+    ?>
+    <div class="bkbox<?php echo $warn ? ' warn' : ''; ?>">
+      <a class="bkbtn" href="<?php echo km_e($self); ?>?backup=1">⬇ バックアップを取る</a>
+      <span class="bkinfo"><?php
+        if ($bk) {
+          echo '最終 ' . km_e(date('Y-m-d', strtotime($bk['at']))) . '（' . (int)$bk['notes'] . '件・'
+             . km_e(number_format($bk['bytes'] / 1024, 0)) . 'KB）';
+          if ($warn) { echo '<br>⚠ ' . (int)$days . '日前です'; }
+        } else {
+          echo '⚠ まだ一度も取っていません';
+        }
+      ?></span>
+    </div>
   </div>
   <div class="main" id="main">
     <div class="bar">
