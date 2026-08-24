@@ -1,0 +1,8 @@
+# 実データと設定は公開しない
+kmemo_data/
+*_config.php
+!demo/kmemo_config.php
+.env
+__pycache__/
+*.pyc
+outputs/
