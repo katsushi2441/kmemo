@@ -408,7 +408,7 @@ function km_login_page($self, $err) {
        . '<input type="hidden" name="action" value="login">'
        . '<label>ユーザー名</label><input name="login_user" autocapitalize="none" autocorrect="off" required autofocus>'
        . '<label>パスワード</label><input name="login_pass" type="password" required>'
-       . '<button class="btn">ログイン</button></form></body></html>';
+       . '<button class="btn">ログイン</button></form>' . ((($_SERVER['HTTP_HOST'] ?? '') === 'proto.exbridge.jp') ? '<p style="text-align:center;font-size:13px;margin:14px 0;color:#5d6b7a">これはデモです。<a href="https://kappstore.exbridge.jp/app.php?id=2186dc017968081c&amp;ref=kmemo" target="_blank" rel="noopener">この製品をオンプレミスで導入する（商品ページ）</a></p>' : '') . '</body></html>';
 }
 
 /* ============================================================
@@ -618,6 +618,7 @@ document.addEventListener('visibilitychange', () => { if (document.hidden) flush
 
 api('notes').then(r => { notes = r.notes; render(); });
 </script>
+<?php if (($_SERVER['HTTP_HOST'] ?? '') === 'proto.exbridge.jp'): ?><p style="text-align:center;font-size:13px;margin:14px 0;color:#5d6b7a">これはデモです。<a href="https://kappstore.exbridge.jp/app.php?id=2186dc017968081c&amp;ref=kmemo" target="_blank" rel="noopener">この製品をオンプレミスで導入する（商品ページ）</a></p><?php endif; ?>
 </body></html>
 <?php
 }
