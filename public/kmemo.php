@@ -394,7 +394,7 @@ function km_login_page($self, $err) {
        . '<meta name="robots" content="noindex,nofollow"><title>Kurage Memo</title>'
        . '<style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#eef2f5;'
        . 'font-family:-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;color:#22303c}'
-       . '.box{background:#fff;border:1px solid #dbe3ea;border-radius:16px;padding:26px 22px;width:min(340px,88vw);'
+       . '.box{box-sizing:border-box;background:#fff;border:1px solid #dbe3ea;border-radius:16px;padding:26px 22px;width:min(340px,88vw);'
        . 'box-shadow:0 10px 30px rgba(20,40,60,.08);text-align:center}'
        . '.box .ic{font-size:40px}h1{font-size:18px;margin:6px 0 16px}'
        . 'label{display:block;text-align:left;font-size:12px;color:#5a6b7a;font-weight:700;margin:10px 0 3px}'
