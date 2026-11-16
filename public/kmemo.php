@@ -289,6 +289,15 @@ function km_auth_check($user, $pass) {
 function km_session_start() {
     if (session_status() === PHP_SESSION_NONE) {
         @ini_set('session.use_only_cookies', '1');
+        // 設定で define('KMEMO_SESSION_DAYS', 365); とすると、その日数ログインを保つ（既定はPHPの標準）
+        if (defined('KMEMO_SESSION_DAYS') && (int)KMEMO_SESSION_DAYS > 0) {
+            $life = (int)KMEMO_SESSION_DAYS * 86400;
+            @ini_set('session.gc_maxlifetime', (string)$life);
+            @ini_set('session.cookie_lifetime', (string)$life);
+            $sd = __DIR__ . '/kmemo_data/sessions';   // 共用の置き場だと他アプリの掃除で消されるので専用に
+            if (!is_dir($sd)) { @mkdir($sd, 0700, true); }
+            if (is_dir($sd) && is_writable($sd)) { session_save_path($sd); }
+        }
         @session_name('KMEMOSESSID');
         @session_start();
     }

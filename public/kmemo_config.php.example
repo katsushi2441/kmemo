@@ -9,3 +9,6 @@ function kmemo_users() {
         // 'kojima' => '$2y$10$...',
     );
 }
+
+// （任意）ログインを保つ日数。書くと、その日数は勝手にログアウトしない（ログイン情報は kmemo_data/sessions に保存）
+// define('KMEMO_SESSION_DAYS', 365);
