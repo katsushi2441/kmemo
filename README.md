@@ -11,6 +11,33 @@ Simplenote型のプレーンテキストメモ。1ファイルPHP・DB不要・�
 
 検証: `php scripts/check_kmemo.php`（26件）
 
+## AIエージェントから使う（MCP）
+
+Claude Code・Codex などのAIエージェントから、メモを読んだり、下書きをメモに置いたりできる。
+メモはこれまでどおり自社のサーバーの1ファイルにあり、AIには MCP の窓口だけを渡す。
+
+- **メモを指定して読ませる**: メモを開くと URL が `…/memo/?n=<メモID>` になる。この URL を AI に貼れば中身を読む
+- **下書きをメモに置く**: 「メモに登録して」で、AIが書いた返信案・議事録を新しいメモにする（返ってきた URL を開けば画面で直せる）
+- **探して使う**: 「L-Zone の件のメモを探して」で、AIが検索してから読む
+
+道具: `memo_list`（一覧・検索）/ `memo_get`（1件を読む）/ `memo_create` / `memo_append`（末尾に書き足す）/ `memo_update`（書き換え）/ `memo_delete`（設定で許したときだけ）
+
+サーバー側（`kmemo_config.php`）:
+
+```php
+function kmemo_api_tokens() { return array('（openssl rand -hex 24 などで作った文字列）' => 'kojima'); }
+// define('KMEMO_API_DELETE', true);   // AIからの削除を許すとき（既定は不可）
+```
+
+手元のPC:
+
+```
+claude mcp add kmemo -e KMEMO_URL=https://example.com/memo/ -e KMEMO_TOKEN=（トークン） -- php /path/to/kmemo_mcp.php
+```
+
+読み取りだけにするときは `-e KMEMO_MCP_READONLY=1`。検証: `python3 scripts/check_mcp.py`（10件・手元で php -S を立てて試す）。
+
+
 ## バックアップ
 
 管理画面の左下から、自分のメモを丸ごとZIPでダウンロードできる。

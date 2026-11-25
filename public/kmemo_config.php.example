@@ -12,3 +12,11 @@ function kmemo_users() {
 
 // （任意）ログインを保つ日数。書くと、その日数は勝手にログアウトしない（ログイン情報は kmemo_data/sessions に保存）
 // define('KMEMO_SESSION_DAYS', 365);
+
+// （任意）AIエージェント（Claude Code・Codex など）から MCP でメモを読み書きする: kmemo_mcp.php
+// 「トークン => ユーザー名」。トークンは推測されない24文字以上（例: openssl rand -hex 24）。書かなければ入口は無効。
+// function kmemo_api_tokens() {
+//     return array('（トークン）' => 'kojima');
+// }
+// （任意）AIエージェントからの削除を許す（既定は不可）
+// define('KMEMO_API_DELETE', true);

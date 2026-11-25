@@ -329,6 +329,64 @@ if (defined('KMEMO_TEST')) { return; }
 $self = strtok($_SERVER['REQUEST_URI'], '?');
 // ?n=メモID（開くメモ）は、ログインをはさんでも引き継ぐ（英数字の ID だけ）
 $km_keep = (isset($_GET['n']) && preg_match('/^[0-9a-f]{8,32}$/', (string)$_GET['n'])) ? '?n=' . $_GET['n'] : '';
+/* ---- AIエージェント用の入口（MCP から呼ぶ）----
+ * ?agent=<操作> ＋ ヘッダー X-KMEMO-Token。トークンは設定の kmemo_api_tokens() に「トークン => ユーザー」で書く。
+ * 操作: list（q で検索・limit）/ get（id か URL）/ create（content）/ append（id, text）/ update（id, content）/ delete（id。設定で KMEMO_API_DELETE を true にしたときだけ）
+ * 画面のログインとは別。トークンが無い設定では使えない（既定は無効）。 */
+if (isset($_GET['agent'])) {
+    header('Content-Type: application/json; charset=utf-8');
+    header('X-Robots-Tag: noindex, nofollow');
+    $out = function ($code, $data) { http_response_code($code); echo json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); exit; };
+    $tokens = function_exists('kmemo_api_tokens') ? kmemo_api_tokens() : array();
+    if (!$tokens) { $out(403, array('ok' => false, 'error' => 'AIエージェント用の入口は無効です（設定の kmemo_api_tokens() にトークンを書いてください）')); }
+    $tok = isset($_SERVER['HTTP_X_KMEMO_TOKEN']) ? (string)$_SERVER['HTTP_X_KMEMO_TOKEN'] : '';
+    $auser = '';
+    foreach ($tokens as $t => $u) { if ($tok !== '' && strlen((string)$t) >= 24 && hash_equals((string)$t, $tok)) { $auser = (string)$u; } }
+    if ($auser === '' || !isset(km_users()[$auser])) { $out(401, array('ok' => false, 'error' => 'トークンが違います')); }
+    $in = json_decode(file_get_contents('php://input'), true);
+    if (!is_array($in)) { $in = array(); }
+    $in += $_GET;
+    $base = (((!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https') ? 'https://' : 'http://')
+          . ($_SERVER['HTTP_HOST'] ?? 'localhost') . $self;
+    $withUrl = function ($n) use ($base) { $n['url'] = $base . '?n=' . $n['id']; return $n; };
+    $idOf = function ($v) { $v = (string)$v; return preg_match('/(?:[?&]n=)?([0-9a-f]{8,32})\s*$/', $v, $m) ? $m[1] : ''; };
+    $find = function ($id) use ($auser) { foreach (km_load($auser) as $n) { if ($n['id'] === $id) { return $n; } } return null; };
+    $act = (string)$_GET['agent'];
+    if ($act === 'list') {
+        $q = mb_strtolower(trim((string)($in['q'] ?? '')), 'UTF-8'); $lim = max(1, min(200, (int)($in['limit'] ?? 50)));
+        $hit = array();
+        foreach (km_list($auser) as $n) {
+            if ($q !== '' && mb_strpos(mb_strtolower($n['content'], 'UTF-8'), $q, 0, 'UTF-8') === false) { continue; }
+            unset($n['content']); $hit[] = $withUrl($n);
+        }
+        $out(200, array('ok' => true, 'count' => count($hit), 'notes' => array_slice($hit, 0, $lim)));
+    }
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST' && $act !== 'get') { $out(405, array('ok' => false, 'error' => 'POSTで呼んでください')); }
+    if ($act === 'get') {
+        $n = $find($idOf($in['id'] ?? '')); if (!$n) { $out(404, array('ok' => false, 'error' => 'そのメモはありません')); }
+        $out(200, array('ok' => true, 'note' => $withUrl(km_note_out($n))));
+    }
+    if ($act === 'create') {
+        $c = (string)($in['content'] ?? ''); if (trim($c) === '') { $out(400, array('ok' => false, 'error' => '本文が空です（1行目がタイトルになります）')); }
+        list($ok, $r) = km_save($auser, '', $c); if (!$ok) { $out(400, array('ok' => false, 'error' => $r)); }
+        $out(200, array('ok' => true, 'note' => $withUrl($r)));
+    }
+    if ($act === 'append' || $act === 'update') {
+        $id = $idOf($in['id'] ?? ''); $n = $find($id); if (!$n) { $out(404, array('ok' => false, 'error' => 'そのメモはありません')); }
+        if ($act === 'append') { $t = (string)($in['text'] ?? ''); if (trim($t) === '') { $out(400, array('ok' => false, 'error' => '書き足す文が空です')); }
+            $c = rtrim($n['content'], "\n") . "\n\n" . $t; }
+        else { $c = (string)($in['content'] ?? ''); if (trim($c) === '') { $out(400, array('ok' => false, 'error' => '本文が空です（消すときは delete）')); } }
+        list($ok, $r) = km_save($auser, $id, $c); if (!$ok) { $out(400, array('ok' => false, 'error' => $r)); }
+        $out(200, array('ok' => true, 'note' => $withUrl($r)));
+    }
+    if ($act === 'delete') {
+        if (!(defined('KMEMO_API_DELETE') && KMEMO_API_DELETE)) { $out(403, array('ok' => false, 'error' => '削除は許可されていません（設定の KMEMO_API_DELETE）')); }
+        list($ok, $r) = km_delete($auser, $idOf($in['id'] ?? '')); if (!$ok) { $out(404, array('ok' => false, 'error' => $r)); }
+        $out(200, array('ok' => true));
+    }
+    $out(404, array('ok' => false, 'error' => 'その操作はありません'));
+}
+
 km_session_start();
 
 /* ---- ログイン/ログアウト ---- */
