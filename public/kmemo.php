@@ -327,6 +327,8 @@ function km_csrf_ok($t) {
 if (defined('KMEMO_TEST')) { return; }
 
 $self = strtok($_SERVER['REQUEST_URI'], '?');
+// ?n=メモID（開くメモ）は、ログインをはさんでも引き継ぐ（英数字の ID だけ）
+$km_keep = (isset($_GET['n']) && preg_match('/^[0-9a-f]{8,32}$/', (string)$_GET['n'])) ? '?n=' . $_GET['n'] : '';
 km_session_start();
 
 /* ---- ログイン/ログアウト ---- */
@@ -346,9 +348,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST'
     if (km_auth_check($u, $p)) {
         session_regenerate_id(true);
         $_SESSION['km_user'] = $u;
-        header('Location: ' . $self); exit;
+        header('Location: ' . $self . $km_keep); exit;
     }
-    km_login_page($self, 'ユーザー名またはパスワードが違います');
+    km_login_page($self . $km_keep, 'ユーザー名またはパスワードが違います');
     exit;
 }
 
@@ -389,7 +391,7 @@ if (isset($_GET['api'])) {
 }
 
 /* ---- 画面 ---- */
-if ($user === '') { km_login_page($self, ''); exit; }
+if ($user === '') { km_login_page($self . $km_keep, ''); exit; }
 km_app_page($self, $user);
 exit;
 
@@ -557,9 +559,17 @@ function render() {
   }
 }
 
+// 開いているメモを URL（?n=メモID）に出す。URL を人に渡したり、AIエージェントに「このメモ」と指定したりできる
+function setUrl(id) {
+  const u = new URL(location.href);
+  if (id) u.searchParams.set('n', id); else u.searchParams.delete('n');
+  history.replaceState(null, '', u.pathname + u.search);
+}
+
 function open(n) {
   flush();
   cur = n;
+  setUrl(n.id);
   $('empty').style.display = 'none';
   $('ed').style.display = ''; $('del').style.display = '';
   $('ed').value = n.content;
@@ -571,6 +581,7 @@ function open(n) {
 
 function newNote() {
   flush();
+  setUrl(null);
   cur = {id: null, content: '', title: '(無題)', excerpt: '', updated: Date.now()/1000};
   $('empty').style.display = 'none';
   $('ed').style.display = ''; $('del').style.display = '';
@@ -592,7 +603,7 @@ async function save() {
     const isNew = cur.id === null;
     cur.id = r.id; cur.title = r.title; cur.excerpt = r.excerpt;
     cur.content = content; cur.updated = r.updated;
-    if (isNew) notes.unshift(cur);
+    if (isNew) { notes.unshift(cur); setUrl(cur.id); }
     else { notes = notes.filter(n => n.id !== cur.id); notes.unshift(cur); }
     $('stat').textContent = '保存しました ✓';
     render();
@@ -610,13 +621,13 @@ $('ed').addEventListener('input', () => {
 });
 $('q').addEventListener('input', render);
 $('new').onclick = newNote;
-$('back').onclick = () => { flush(); document.body.classList.remove('editing'); cur = null; render(); };
+$('back').onclick = () => { flush(); document.body.classList.remove('editing'); cur = null; setUrl(null); render(); };
 $('del').onclick = async () => {
   if (!cur) return;
   if (!confirm('このメモを削除します。よろしいですか')) return;
   if (cur.id) { try { await api('delete', {id: cur.id}); } catch (e) {} }
   notes = notes.filter(n => n.id !== cur.id);
-  cur = null; dirty = false;
+  cur = null; dirty = false; setUrl(null);
   $('ed').style.display = 'none'; $('del').style.display = 'none';
   $('empty').style.display = '';
   document.body.classList.remove('editing');
@@ -625,7 +636,12 @@ $('del').onclick = async () => {
 addEventListener('beforeunload', flush);
 document.addEventListener('visibilitychange', () => { if (document.hidden) flush(); });
 
-api('notes').then(r => { notes = r.notes; render(); });
+api('notes').then(r => {
+  notes = r.notes; render();
+  // URL に ?n=メモID があれば、そのメモを開く
+  const want = new URLSearchParams(location.search).get('n');
+  if (want) { const n = notes.find(x => x.id === want); if (n) open(n); else setUrl(null); }
+});
 </script>
 <?php if (($_SERVER['HTTP_HOST'] ?? '') === 'proto.exbridge.jp'): ?><p style="text-align:center;font-size:13px;margin:14px 0;color:#5d6b7a">これはデモです。<a href="https://kappstore.exbridge.jp/app.php?id=2186dc017968081c&amp;ref=kmemo" target="_blank" rel="noopener">この製品をオンプレミスで導入する（商品ページ）</a></p><script src=https://kurage.exbridge.jp/partner-bar.js defer></script><?php endif; ?>
 </body></html>
