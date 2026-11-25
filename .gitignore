@@ -6,3 +6,6 @@ kmemo_data/
 __pycache__/
 *.pyc
 outputs/
+store/apps_*.json
+store/apps_in.json
+pv/caps/*.html

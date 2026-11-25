@@ -1,0 +1,132 @@
+{
+ "id": "kmemo-pv",
+ "name": "Kurage Memo PV（MCP 対応）",
+ "width": 1920,
+ "height": 1080,
+ "narration": {
+  "reading": "メモはあるのに、エーアイに見せるたびに、コピーして貼り付けていませんか。クラゲメモは、自社のサーバーに置ける、シンプルなメモです。一行目がタイトルになり、書いたそばから、自動で保存されます。メモを開くと、そのメモ専用のユーアールエルになります。このユーアールエルを、クロードコードなどのエーアイに貼るだけで、エーアイが、中身を読みます。取引先からの相談を読ませて、返信案を作ってもらい、メモに登録して、と言えば、エーアイが、新しいメモとして保存します。あとは、画面で開いて、直して使うだけです。メモは、自社のサーバーの、ひとつのファイルにあります。エーアイに渡すのは、鍵を決めた窓口だけです。クラゲメモ。",
+  "delay": 1.0,
+  "must_hear": [
+   "返信案",
+   "自社のサーバー"
+  ]
+ },
+ "scenes": [
+  {
+   "type": "clip",
+   "file": "/home/kojima/work/kpvgen/outputs/h3_queue/h3-kdealdesk-a-8s.mp4",
+   "duration": 8,
+   "fit": "blur",
+   "audio_volume": 0.12,
+   "telop": {
+    "main": "AIに見せるたびに、コピーして貼っていませんか",
+    "sub": "メモはあるのに",
+    "at": 0.6
+   }
+  },
+  {
+   "type": "image",
+   "file": "/home/kojima/work/kmemo/pv/caps/01-list.png",
+   "duration": 6,
+   "zoom_from": 1.02,
+   "zoom_to": 1.12,
+   "origin": [
+    "20%",
+    "30%"
+   ],
+   "telop": {
+    "main": "自社のサーバーに置ける、シンプルなメモ",
+    "sub": "Kurage Memo ── 1行目がタイトル・自動で保存"
+   }
+  },
+  {
+   "type": "image",
+   "file": "/home/kojima/work/kmemo/pv/caps/02-url.png",
+   "duration": 6,
+   "zoom_from": 1.04,
+   "zoom_to": 1.16,
+   "origin": [
+    "30%",
+    "5%"
+   ],
+   "telop": {
+    "main": "メモを開くと、そのメモ専用の URL",
+    "sub": "…/memo/?n=メモID"
+   }
+  },
+  {
+   "type": "image",
+   "file": "/home/kojima/work/kmemo/pv/caps/03-ai-get.png",
+   "duration": 9,
+   "zoom_from": 1.02,
+   "zoom_to": 1.1,
+   "origin": [
+    "30%",
+    "45%"
+   ],
+   "telop": {
+    "main": "URL を貼るだけで、AIが中身を読む",
+    "sub": "MCP 対応 ── Claude Code・Codex から memo_get"
+   }
+  },
+  {
+   "type": "image",
+   "file": "/home/kojima/work/kmemo/pv/caps/04-ai-create.png",
+   "duration": 8,
+   "zoom_from": 1.02,
+   "zoom_to": 1.1,
+   "origin": [
+    "30%",
+    "45%"
+   ],
+   "telop": {
+    "main": "「memo に登録して」で、返信案をメモに",
+    "sub": "memo_create ── 返ってきた URL で開ける"
+   }
+  },
+  {
+   "type": "image",
+   "file": "/home/kojima/work/kmemo/pv/caps/05-created.png",
+   "duration": 6,
+   "zoom_from": 1.02,
+   "zoom_to": 1.12,
+   "origin": [
+    "35%",
+    "25%"
+   ],
+   "telop": {
+    "main": "あとは画面で開いて、直して使うだけ",
+    "sub": "AIの下書きが、あなたのメモに残る"
+   }
+  },
+  {
+   "type": "clip",
+   "file": "/home/kojima/work/kpvgen/outputs/h3_queue/h3-kdealdesk-b-8s.mp4",
+   "duration": 8,
+   "fit": "blur",
+   "audio_volume": 0.12,
+   "telop": {
+    "main": "メモは自社のサーバーの1ファイル",
+    "sub": "AIに渡すのは、鍵を決めた窓口だけ",
+    "at": 0.6
+   }
+  },
+  {
+   "type": "endcard",
+   "duration": 7,
+   "title": "Kurage Memo",
+   "sub": "AIエージェントと使える、自社サーバーのメモ（MCP 対応）",
+   "url1": "デモ: proto.exbridge.jp/kmemo/",
+   "url2": "導入版: kappstore.exbridge.jp",
+   "image": "/home/kojima/work/kurage_web/images/kurage-mascot-cutout.png",
+   "credit": "映像生成: MiniMax H3（セルフホスト）"
+  }
+ ],
+ "poster": {
+  "time": 4.0,
+  "main": "メモの URL を貼るだけで、\nAIが読む・書く",
+  "sub": "MCP 対応・自社サーバーのメモ",
+  "badge": "Kurage Memo",
+  "file": "/home/kojima/work/kpvgen/outputs/h3_queue/h3-kdealdesk-b-8s.mp4"
+ }
+}

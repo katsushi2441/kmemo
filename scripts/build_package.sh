@@ -7,8 +7,8 @@ stamp=$(date +%Y%m%d)
 zip="outputs/kmemo-${stamp}.zip"
 rm -f "$zip"
 zip -r "$zip" \
-  public/kmemo.php public/kmemo_config.php.example \
-  scripts/check_kmemo.php scripts/deploy_demo.sh \
+  public/kmemo.php public/kmemo_mcp.php public/kmemo_config.php.example \
+  scripts/check_kmemo.php scripts/check_mcp.py scripts/deploy_demo.sh \
   skills docs README.md LICENSE \
   -x '*.json' -x '*kmemo_data*' >/dev/null
 echo "built: $zip ($(du -h "$zip" | cut -f1))"
